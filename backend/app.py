@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from backend.routes import auth_routes
-from monitoring import REQUEST_COUNTER
-from backend.routes import doctor_routes
-
-app.include_router(doctor_routes.router)
+from backend.monitoring import REQUEST_COUNTER
+from backend.database import engine
+from backend.models import Base
 
 app = FastAPI()
+
+Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_routes.router)
 
@@ -22,4 +23,4 @@ async def count_requests(request, call_next):
 @app.get("/")
 def home():
 
-    return {"message":"Healthcare AI Agent Running"}
+    return {"message": "Healthcare AI Agent Running"}

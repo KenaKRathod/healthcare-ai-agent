@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from auth import doctor_only
+from backend.auth import doctor_only
 
 router = APIRouter()
 

@@ -2,7 +2,7 @@ from jose import jwt
 from datetime import datetime, timedelta
 import os
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = "healthcaresecret"
 ALGORITHM = "HS256"
 
 def create_access_token(data: dict):
@@ -16,10 +16,3 @@ def create_access_token(data: dict):
     token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
     return token
-
-def doctor_only(user):
-
-    if user["role"] != "doctor":
-        raise Exception("Access Denied: Doctor Only")
-
-    return True
