@@ -1,31 +1,23 @@
-import sqlite3
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import os
+from dotenv import load_dotenv
 
-# connect to database
-conn = sqlite3.connect("data/health_data.db", check_same_thread=False)
-cursor = conn.cursor()
+load_dotenv()
 
-# create table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS medications(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    time TEXT
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_engine(DATABASE_URL)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
 )
-""")
 
-conn.commit()
-
-
-# add medication
-def add_medication(name, time):
-    cursor.execute(
-        "INSERT INTO medications (name, time) VALUES (?, ?)",
-        (name, time)
-    )
-    conn.commit()
-
-
-# get medications
-def get_medications():
-    cursor.execute("SELECT * FROM medications")
-    return cursor.fetchall()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

@@ -1,29 +1,25 @@
-import streamlit as st
-from database import add_medication, get_medications
-from chatbot import health_chatbot
+from fastapi import FastAPI
+from backend.routes import auth_routes
+from monitoring import REQUEST_COUNTER
+from backend.routes import doctor_routes
 
-st.title("Healthcare AI Agent")
+app.include_router(doctor_routes.router)
 
-st.header("Medication Reminder")
+app = FastAPI()
 
-medicine_name = st.text_input("Enter Medicine Name")
-medicine_time = st.time_input("Select Time")
+app.include_router(auth_routes.router)
 
-if st.button("Add Medication"):
-    add_medication(medicine_name, str(medicine_time))
-    st.success("Medication added successfully!")
+@app.middleware("http")
+async def count_requests(request, call_next):
 
-st.subheader("Scheduled Medications")
+    REQUEST_COUNTER.inc()
 
-medications = get_medications()
+    response = await call_next(request)
 
-for med in medications:
-    st.write(f"{med[1]} at {med[2]}")
+    return response
 
-st.header("Health Chatbot")
 
-user_input = st.text_input("Ask a health question")
+@app.get("/")
+def home():
 
-if user_input:
-    response = health_chatbot(user_input)
-    st.write(response)
+    return {"message":"Healthcare AI Agent Running"}

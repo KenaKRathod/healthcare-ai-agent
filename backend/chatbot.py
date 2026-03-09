@@ -1,18 +1,9 @@
-def health_chatbot(user_input):
+from langgraph.graph import StateGraph
 
-    user_input = user_input.lower()
+def health_agent(state):
 
-    if "medicine" in user_input:
-        return "You can add medicine reminders in the medication section."
+    question = state["question"]
 
-    elif "health" in user_input:
-        return "Remember to drink water, exercise, and take medicines on time."
+    response = "AI health assistant response"
 
-    elif "hello" in user_input:
-        return "Hello! I'm your healthcare assistant."
-
-    elif "fever" in user_input:
-        return "If you have fever, rest well and consult a doctor if it persists."
-
-    else:
-        return "I'm here to help with medication reminders and basic health advice."
+    return {"response":response}
