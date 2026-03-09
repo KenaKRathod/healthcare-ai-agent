@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from backend.database import engine
 from backend.models import Base
 from backend.monitoring import REQUEST_COUNTER
-from backend.routes import auth_routes, doctor_routes, patient_routes
+from backend.routes import ai_routes, auth_routes, doctor_routes, patient_routes
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
@@ -18,6 +18,7 @@ Base.metadata.create_all(bind=engine)
 app.include_router(auth_routes.router)
 app.include_router(doctor_routes.router)
 app.include_router(patient_routes.router)
+app.include_router(ai_routes.router)
 
 
 def error_response(message: str, status_code: int) -> JSONResponse:
