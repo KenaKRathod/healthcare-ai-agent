@@ -1,21 +1,14 @@
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from pathlib import Path
 
-Base = declarative_base()
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
-class User(Base):
-    __tablename__ = "users"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DATA_DIR / "health_data.db"
+DATABASE_URL = f"sqlite:///{DB_PATH.as_posix()}"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True)
-    password = Column(String)
-    role = Column(String)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
-
-class HealthData(Base):
-    __tablename__ = "health_data"
-
-    id = Column(Integer, primary_key=True)
-    patient_name = Column(String)
-    heart_rate = Column(Integer)
-    blood_pressure = Column(String)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
