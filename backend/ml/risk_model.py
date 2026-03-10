@@ -2,8 +2,15 @@ from dataclasses import dataclass
 
 
 def _parse_blood_pressure(blood_pressure: str) -> tuple[int, int]:
-    systolic_text, diastolic_text = blood_pressure.split("/", maxsplit=1)
-    return int(systolic_text), int(diastolic_text)
+    normalized = str(blood_pressure).strip()
+    if "/" in normalized:
+        systolic_text, diastolic_text = normalized.split("/", maxsplit=1)
+        return int(systolic_text), int(diastolic_text)
+
+    if normalized.isdigit():
+        return int(normalized), 80
+
+    return 120, 80
 
 
 @dataclass

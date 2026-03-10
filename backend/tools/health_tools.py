@@ -1,7 +1,15 @@
 def categorize_blood_pressure(blood_pressure: str) -> str:
-    systolic_text, diastolic_text = blood_pressure.split("/", maxsplit=1)
-    systolic = int(systolic_text)
-    diastolic = int(diastolic_text)
+    normalized = str(blood_pressure).strip()
+    if "/" in normalized:
+        systolic_text, diastolic_text = normalized.split("/", maxsplit=1)
+        systolic = int(systolic_text)
+        diastolic = int(diastolic_text)
+    elif normalized.isdigit():
+        systolic = int(normalized)
+        diastolic = 80
+    else:
+        systolic = 120
+        diastolic = 80
 
     if systolic >= 140 or diastolic >= 90:
         return "high blood pressure"
