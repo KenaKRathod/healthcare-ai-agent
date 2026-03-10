@@ -1,68 +1,69 @@
-# Healthcare AI Agent 🩺🤖
+# Healthcare AI Agent
 
-A simple AI-powered healthcare assistant that helps users track medications and receive basic health guidance.
+Healthcare-focused FastAPI backend with a modular LangGraph agent, rule-based ML risk scoring, and built-in vitals analytics endpoints.
 
-## Features
+## Stack
 
-* 💊 Medication reminder system
-* 📊 Health data storage using SQLite
-* 🤖 Basic health chatbot
-* 🌐 Streamlit web interface
-
-## Tech Stack
-
-* Python
-* Streamlit
-* SQLite
-* Pandas
-* LangChain
+- FastAPI and Uvicorn for the API layer
+- LangGraph for agent orchestration
+- SQLAlchemy and SQLite/PostgreSQL for persistence
+- Pandas and Altair for health data analysis and visualization
+- Optional `scikit-learn` support for Python versions below 3.14
 
 ## Project Structure
 
-```
+```text
 healthcare-ai-agent
-│
-└── backend
-    │
-    ├── app.py
-    ├── chatbot.py
-    ├── database.py
-    ├── requirements.txt
-    │
-    └── data
+|
++-- backend
+|   +-- agents
+|   +-- api
+|   +-- core
+|   +-- ml
+|   +-- schemas
+|   +-- services
+|   +-- tools
+|   +-- app.py
+|   +-- auth.py
+|   +-- database.py
+|   +-- models.py
+|   \-- requirements.txt
+\-- tests
 ```
 
-## How to Run
+## Setup
 
 1. Install dependencies
 
-```
-pip install -r requirements.txt
-```
-
-2. Run the app
-
-```
-streamlit run app.py
+```bash
+venv\Scripts\python.exe -m pip install -r backend/requirements.txt
 ```
 
-3. Open in browser
+2. Configure `.env`
 
+```env
+DATABASE_URL=sqlite:///backend/data/health_data.db
+SECRET_KEY=healthcaresecret
+ALGORITHM=HS256
+APP_NAME=Healthcare AI Agent
+APP_VERSION=0.1.0
 ```
-http://localhost:8501
+
+3. Start the API
+
+```bash
+venv\Scripts\python.exe -m uvicorn backend.app:app --reload
 ```
 
-## Demo
+## Available Endpoints
 
-The system allows users to:
+- `POST /health-data`
+- `GET /health-data`
+- `POST /ai-health-chat`
+- `GET /analytics/risk-summary`
+- `GET /analytics/vitals-chart`
 
-* Add medication reminders
-* View scheduled medications
-* Ask basic health-related questions to the chatbot
+## Notes
 
-## Future Improvements
-
-* AI-based symptom analysis
-* Smart medication alerts
-* Health analytics dashboard
-* Integration with wearable health devices
+- The current environment uses Python 3.14.3, so the included ML layer defaults to a lightweight built-in risk model instead of requiring `scikit-learn`.
+- Legacy imports such as `backend.routes.patient_routes` and `backend.health_agent` still work as compatibility shims.

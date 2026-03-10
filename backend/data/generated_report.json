@@ -1,0 +1,35 @@
+{
+  "patient_name": "Alice",
+  "bmi": 27.4,
+  "trends": {
+    "heart_rate": 96,
+    "steps": 4200,
+    "sleep_hours": 5.8,
+    "calorie_intake": 2150
+  },
+  "predicted_risk": {
+    "baseline": {
+      "risk_score": 0.18,
+      "risk_level": "low"
+    },
+    "ml_prediction": {
+      "anomaly_flag": false,
+      "anomaly_score": -0.5,
+      "risk_predictions": {
+        "bmi": 27.4,
+        "heart_rate": 96,
+        "steps": 4200,
+        "diabetes_risk_score": 1.0,
+        "diabetes_risk_label": "high",
+        "cardiovascular_risk_score": 1.0,
+        "cardiovascular_risk_label": "high",
+        "obesity_risk_score": 1.0,
+        "obesity_risk_label": "high"
+      }
+    }
+  },
+  "recommendations": [
+    "Monitor symptoms closely.",
+    "Seek urgent care for severe chest pain, confusion, or breathing difficulty."
+  ]
+}

@@ -5,20 +5,18 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from backend.api.router import api_router
+from backend.core.config import settings
 from backend.database import engine
 from backend.models import Base
 from backend.monitoring import REQUEST_COUNTER
-from backend.routes import ai_routes, auth_routes, doctor_routes, patient_routes
 
-app = FastAPI()
+app = FastAPI(title=settings.app_name, version=settings.app_version)
 logger = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
 
-app.include_router(auth_routes.router)
-app.include_router(doctor_routes.router)
-app.include_router(patient_routes.router)
-app.include_router(ai_routes.router)
+app.include_router(api_router)
 
 
 def error_response(message: str, status_code: int) -> JSONResponse:
