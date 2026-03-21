@@ -14,6 +14,10 @@ def build_health_report(
     trends: dict | None,
     predicted_risk: dict | None,
     recommendations: list[str] | None,
+    goal_statuses: list[dict] | None = None,
+    interactions: list[dict] | None = None,
+    insights: list[str] | None = None,
+    journey_summary: dict | None = None,
 ) -> dict:
     return {
         "patient_name": patient_name,
@@ -21,6 +25,10 @@ def build_health_report(
         "trends": trends or {},
         "predicted_risk": predicted_risk or {},
         "recommendations": recommendations or [],
+        "goal_statuses": goal_statuses or [],
+        "interactions": interactions or [],
+        "insights": insights or [],
+        "journey_summary": journey_summary or {},
     }
 
 
@@ -40,6 +48,10 @@ def export_pdf_report(report: dict, output_path: str | Path) -> str:
         f"BMI: {report.get('bmi', 'N/A')}",
         f"Predicted Risk: {json.dumps(report.get('predicted_risk', {}), indent=2)}",
         f"Trends: {json.dumps(report.get('trends', {}), indent=2)}",
+        f"Goal Statuses: {json.dumps(report.get('goal_statuses', []), indent=2)}",
+        f"Medication Interactions: {json.dumps(report.get('interactions', []), indent=2)}",
+        f"Insights: {json.dumps(report.get('insights', []), indent=2)}",
+        f"Journey Summary: {json.dumps(report.get('journey_summary', {}), indent=2)}",
         "Recommendations:",
     ]
     recommendations = report.get("recommendations", [])
@@ -78,6 +90,10 @@ def generate_health_report(
     trends: dict | None,
     predicted_risk: dict | None,
     recommendations: list[str] | None,
+    goal_statuses: list[dict] | None = None,
+    interactions: list[dict] | None = None,
+    insights: list[str] | None = None,
+    journey_summary: dict | None = None,
     output_format: str = "json",
     output_path: str | Path | None = None,
 ) -> dict:
@@ -87,6 +103,10 @@ def generate_health_report(
         trends=trends,
         predicted_risk=predicted_risk,
         recommendations=recommendations,
+        goal_statuses=goal_statuses,
+        interactions=interactions,
+        insights=insights,
+        journey_summary=journey_summary,
     )
 
     report_format = output_format.lower()

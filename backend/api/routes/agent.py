@@ -31,6 +31,8 @@ def ai_chat(
         report_path=result.get("report_path"),
         intent=result.get("intent"),
         selected_tool=result.get("selected_tool"),
+        predictive_summary=result.get("predictive_summary", {}),
+        journey_summary=result.get("journey_summary", {}),
     )
 
 
@@ -40,6 +42,7 @@ async def run_workflow(
     question: str = Form("Summarize my health trends and risks."),
     patient_name: str = Form("Unknown"),
     report_format: str = Form("json"),
+    db: Annotated[Session, Depends(get_db)] = None,
 ):
     suffix = Path(file.filename or "health_data.csv").suffix or ".csv"
     temp_path = Path(tempfile.gettempdir()) / f"healthcare_upload{suffix}"
@@ -48,6 +51,7 @@ async def run_workflow(
 
     result = run_health_monitoring_workflow(
         file_path=temp_path,
+        db=db,
         question=question,
         patient_name=patient_name,
         report_format=report_format,

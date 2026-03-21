@@ -1,52 +1,67 @@
-from fastapi import APIRouter
+from typing import Annotated
 
-from backend.health_goals import DEFAULT_GOALS, goal_recommendation, progress_percentage
-from backend.schemas.health import GoalStatus
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from backend.api.dependencies import get_db
+from backend.schemas.health import GoalStatus, HealthGoalCreate, HealthGoalUpdate
+from backend.services.goal_service import (
+    build_goal_statuses,
+    create_goal,
+    list_patient_goals,
+    update_goal_target,
+)
 
 router = APIRouter()
 
 
 @router.get("/health-goals", response_model=list[GoalStatus])
 def get_health_goals(
+    db: Annotated[Session, Depends(get_db)],
+    patient_name: str = "Unknown",
     steps: int = 0,
     sleep_hours: float = 0.0,
     weight_loss_progress_kg: float = 0.0,
 ):
-    return [
-        GoalStatus(
-            goal_name="daily_steps",
-            current_value=float(steps),
-            target_value=float(DEFAULT_GOALS["daily_steps"]),
-            progress_percent=progress_percentage(float(steps), float(DEFAULT_GOALS["daily_steps"])),
-            recommendation=goal_recommendation(
-                "daily_steps",
-                float(steps),
-                float(DEFAULT_GOALS["daily_steps"]),
-            ),
-        ),
-        GoalStatus(
-            goal_name="sleep_hours",
-            current_value=float(sleep_hours),
-            target_value=float(DEFAULT_GOALS["sleep_hours"]),
-            progress_percent=progress_percentage(float(sleep_hours), float(DEFAULT_GOALS["sleep_hours"])),
-            recommendation=goal_recommendation(
-                "sleep_hours",
-                float(sleep_hours),
-                float(DEFAULT_GOALS["sleep_hours"]),
-            ),
-        ),
-        GoalStatus(
-            goal_name="weight_loss_kg",
-            current_value=float(weight_loss_progress_kg),
-            target_value=float(DEFAULT_GOALS["weight_loss_kg"]),
-            progress_percent=progress_percentage(
-                float(weight_loss_progress_kg),
-                float(DEFAULT_GOALS["weight_loss_kg"]),
-            ),
-            recommendation=goal_recommendation(
-                "weight_loss_kg",
-                float(weight_loss_progress_kg),
-                float(DEFAULT_GOALS["weight_loss_kg"]),
-            ),
-        ),
-    ]
+    goals = list_patient_goals(db, patient_name)
+    progress_inputs = {
+        "daily_steps": float(steps),
+        "sleep_hours": float(sleep_hours),
+        "weight_loss_kg": float(weight_loss_progress_kg),
+    }
+    return [GoalStatus(**status) for status in build_goal_statuses(goals, progress_inputs)]
+
+
+@router.post("/health-goals", response_model=GoalStatus)
+def create_health_goal(
+    payload: HealthGoalCreate,
+    db: Annotated[Session, Depends(get_db)],
+):
+    goal = create_goal(
+        db,
+        patient_name=payload.patient_name,
+        goal_name=payload.goal_name,
+        target_value=payload.target_value,
+        unit=payload.unit,
+    )
+    status = build_goal_statuses([goal], {payload.goal_name: 0.0})[0]
+    return GoalStatus(**status)
+
+
+@router.put("/health-goals/{goal_id}", response_model=GoalStatus)
+def update_health_goal(
+    goal_id: int,
+    payload: HealthGoalUpdate,
+    db: Annotated[Session, Depends(get_db)],
+):
+    goal = update_goal_target(
+        db,
+        goal_id=goal_id,
+        target_value=payload.target_value,
+        unit=payload.unit,
+    )
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    status = build_goal_statuses([goal], {goal.goal_name: 0.0})[0]
+    return GoalStatus(**status)

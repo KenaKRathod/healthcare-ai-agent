@@ -11,8 +11,11 @@ from backend.tools import (
     calorie_analysis,
     calculate_bmi,
     check_interactions,
+    latest_guidelines,
     nutrition_recommendation,
+    search_medical_information,
     summarize_vitals,
+    treatment_options,
 )
 
 
@@ -27,6 +30,8 @@ def detect_intent(state: HealthAgentState) -> HealthAgentState:
         intent = "nutrition"
     elif any(keyword in question for keyword in ["fitness", "bmi", "exercise", "steps", "workout"]):
         intent = "fitness"
+    elif any(keyword in question for keyword in ["research", "guideline", "treatment", "condition"]):
+        intent = "research"
     else:
         intent = "general"
 
@@ -39,6 +44,7 @@ def select_tool(state: HealthAgentState) -> HealthAgentState:
         "medication": "medication_tool",
         "nutrition": "nutrition_tool",
         "fitness": "fitness_tool",
+        "research": "research_tool",
         "general": "health_summary",
     }
     return {"selected_tool": tool_map[state.get("intent", "general")]}
@@ -48,6 +54,15 @@ def _extract_symptoms(question: str) -> list[str]:
     known_symptoms = ["fever", "cough", "headache", "fatigue", "chest pain"]
     lowered = question.lower()
     return [symptom for symptom in known_symptoms if symptom in lowered]
+
+
+def _extract_research_topic(question: str) -> str:
+    known_topics = ["hypertension", "diabetes", "asthma"]
+    lowered = question.lower()
+    for topic in known_topics:
+        if topic in lowered:
+            return topic
+    return "hypertension"
 
 
 def run_health_analysis(state: HealthAgentState) -> HealthAgentState:
@@ -91,6 +106,18 @@ def run_health_analysis(state: HealthAgentState) -> HealthAgentState:
             "Aim for regular daily movement.",
             "Track heart rate, steps, and recovery consistently.",
         ]
+    elif selected_tool == "research_tool":
+        topic = state.get("topic") or _extract_research_topic(question)
+        tool_result = {
+            "topic": topic,
+            "summary": search_medical_information(topic),
+            "guidelines": latest_guidelines(topic),
+            "treatment_options": treatment_options(topic),
+        }
+        recommendations = [
+            "Use evidence summaries to prepare questions for your clinician.",
+            "Do not replace professional care with general research guidance.",
+        ]
     else:
         tool_result = summarize_vitals(latest_vitals)
         recommendations = ["Maintain regular monitoring and consult a clinician for persistent concerns."]
@@ -99,6 +126,8 @@ def run_health_analysis(state: HealthAgentState) -> HealthAgentState:
         "tool_result": tool_result,
         "vital_summary": summarize_vitals(latest_vitals) if latest_vitals else "No recent vitals are on file.",
         "recommendations": recommendations,
+        "research_summary": tool_result if selected_tool == "research_tool" else {},
+        "interactions": tool_result if selected_tool == "medication_tool" else state.get("interactions", []),
     }
 
 
@@ -118,6 +147,13 @@ def run_ml_analysis(state: HealthAgentState) -> HealthAgentState:
 
     risk_frame = pd.DataFrame([{"bmi": bmi_value, "heart_rate": heart_rate, "steps": steps}])
     prediction_result = health_risk_predictor.predict(risk_frame).iloc[0].to_dict()
+    predictive_summary = {
+        "baseline_risk_level": risk_prediction["risk_level"],
+        "baseline_risk_score": float(risk_prediction["risk_score"]),
+        "anomaly_flag": bool(anomaly_result["anomaly_flag"]),
+        "anomaly_score": float(anomaly_result["anomaly_score"]),
+        "projected_health_risks": prediction_result,
+    }
 
     return {
         "prediction": risk_prediction,
@@ -126,7 +162,30 @@ def run_ml_analysis(state: HealthAgentState) -> HealthAgentState:
             "anomaly_score": float(anomaly_result["anomaly_score"]),
             "risk_predictions": prediction_result,
         },
+        "predictive_summary": predictive_summary,
     }
+
+
+def build_insights_node(state: HealthAgentState) -> HealthAgentState:
+    prediction = state.get("prediction", {})
+    predictive_summary = state.get("predictive_summary", {})
+    goal_statuses = state.get("goal_statuses", [])
+    journey_summary = state.get("journey_summary", {})
+
+    insights = [
+        f"Current baseline risk is {prediction.get('risk_level', 'unknown')}.",
+        f"Anomaly flag is {'on' if predictive_summary.get('anomaly_flag') else 'off'}.",
+    ]
+    for goal in goal_statuses[:3]:
+        insights.append(f"{goal.get('goal_name', 'goal')} progress is {goal.get('progress_percent', 0):.2f}%.")
+    if journey_summary:
+        insights.append(
+            f"Health journey trend is {journey_summary.get('risk_trend', 'unknown')} across "
+            f"{journey_summary.get('snapshot_count', 0)} snapshot(s)."
+        )
+    if state.get("research_summary"):
+        insights.append("Research guidance was included for the requested condition.")
+    return {"insights": insights}
 
 
 def generate_report_node(state: HealthAgentState) -> HealthAgentState:
@@ -143,8 +202,12 @@ def generate_report_node(state: HealthAgentState) -> HealthAgentState:
         predicted_risk={
             "baseline": state.get("prediction", {}),
             "ml_prediction": state.get("ml_prediction", {}),
+            "predictive_summary": state.get("predictive_summary", {}),
         },
         recommendations=state.get("recommendations", []),
+        goal_statuses=state.get("goal_statuses", []),
+        interactions=state.get("interactions", []),
+        insights=state.get("insights", []),
         output_format=state.get("output_format", "json"),
         output_path=state.get("output_path"),
     )
@@ -161,8 +224,11 @@ def compose_response(state: HealthAgentState) -> HealthAgentState:
         f"Tool used: {state.get('selected_tool', 'health_summary')}.",
         f"Summary: {state.get('vital_summary', 'No vitals available.')}",
         f"Risk: {state.get('prediction', {}).get('risk_level', 'unknown')}.",
+        f"Trend: {state.get('journey_summary', {}).get('risk_trend', 'unknown')}.",
         "This is supportive guidance and not a medical diagnosis.",
     ]
+    if state.get("research_summary"):
+        response_parts.append("Research guidance was added to the response.")
     if report_path:
         response_parts.append(f"Report generated at: {Path(report_path).as_posix()}.")
     return {"response": " ".join(response_parts)}
@@ -173,13 +239,15 @@ graph.add_node("detect_intent", detect_intent)
 graph.add_node("select_tool", select_tool)
 graph.add_node("run_health_analysis", run_health_analysis)
 graph.add_node("run_ml_analysis", run_ml_analysis)
+graph.add_node("build_insights_node", build_insights_node)
 graph.add_node("generate_report_node", generate_report_node)
 graph.add_node("compose_response", compose_response)
 graph.add_edge(START, "detect_intent")
 graph.add_edge("detect_intent", "select_tool")
 graph.add_edge("select_tool", "run_health_analysis")
 graph.add_edge("run_health_analysis", "run_ml_analysis")
-graph.add_edge("run_ml_analysis", "generate_report_node")
+graph.add_edge("run_ml_analysis", "build_insights_node")
+graph.add_edge("build_insights_node", "generate_report_node")
 graph.add_edge("generate_report_node", "compose_response")
 graph.set_finish_point("compose_response")
 

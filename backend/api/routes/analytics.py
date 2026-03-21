@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from backend.api.dependencies import get_db
-from backend.schemas.health import HealthAnalyticsResponse, RiskSummary, VitalsChart
+from backend.schemas.health import HealthAnalyticsResponse, JourneySummaryResponse, RiskSummary, VitalsChart
 from backend.services.analytics_service import build_risk_summary, build_vitals_chart
+from backend.services.journey_service import build_journey_summary
 
 router = APIRouter(prefix="/analytics")
 
@@ -36,3 +37,12 @@ def health_analytics(
         risk_summary=build_risk_summary(db, limit=limit),
         vitals_chart=build_vitals_chart(db, limit=limit),
     )
+
+
+@health_analytics_router.get("/health-journey", response_model=JourneySummaryResponse)
+def health_journey(
+    db: Annotated[Session, Depends(get_db)],
+    patient_name: str = "Unknown",
+    limit: int = 10,
+):
+    return JourneySummaryResponse(**build_journey_summary(db, patient_name=patient_name, limit=limit))
