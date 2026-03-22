@@ -1,0 +1,26 @@
+{
+  "records": [
+    {
+      "date": "2026-03-01",
+      "heart_rate": 78,
+      "blood_pressure": "120/80",
+      "steps": 8200,
+      "sleep_hours": 7.0,
+      "calorie_intake": 2100,
+      "weight_kg": 72,
+      "height_m": 1.75,
+      "medications": "warfarin, ibuprofen"
+    },
+    {
+      "date": "2026-03-02",
+      "heart_rate": 88,
+      "blood_pressure": "130/85",
+      "steps": 9100,
+      "sleep_hours": 7.5,
+      "calorie_intake": 2050,
+      "weight_kg": 72,
+      "height_m": 1.75,
+      "medications": "warfarin, ibuprofen"
+    }
+  ]
+}

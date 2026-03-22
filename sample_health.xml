@@ -1,0 +1,24 @@
+<records>
+  <record>
+    <date>2026-03-01</date>
+    <heart_rate>78</heart_rate>
+    <blood_pressure>120/80</blood_pressure>
+    <steps>8200</steps>
+    <sleep_hours>7.0</sleep_hours>
+    <calorie_intake>2100</calorie_intake>
+    <weight_kg>72</weight_kg>
+    <height_m>1.75</height_m>
+    <medications>warfarin, ibuprofen</medications>
+  </record>
+  <record>
+    <date>2026-03-02</date>
+    <heart_rate>88</heart_rate>
+    <blood_pressure>130/85</blood_pressure>
+    <steps>9100</steps>
+    <sleep_hours>7.5</sleep_hours>
+    <calorie_intake>2050</calorie_intake>
+    <weight_kg>72</weight_kg>
+    <height_m>1.75</height_m>
+    <medications>warfarin, ibuprofen</medications>
+  </record>
+</records>
