@@ -6,7 +6,7 @@ Healthcare-focused FastAPI backend with a modular LangGraph agent, rule-based ML
 
 - FastAPI and Uvicorn for the API layer
 - LangGraph for agent orchestration
-- SQLAlchemy and SQLite/PostgreSQL for persistence
+- SQLAlchemy and SQLite for persistence
 - Pandas and Altair for health data analysis and visualization
 - Optional `scikit-learn` support for Python versions below 3.14
 

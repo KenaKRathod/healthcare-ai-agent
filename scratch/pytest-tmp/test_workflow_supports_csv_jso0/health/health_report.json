@@ -1,0 +1,93 @@
+{
+  "patient_name": "Workflow User",
+  "bmi": 24.0,
+  "trends": {
+    "heart_rate": 82,
+    "steps": 8400,
+    "sleep_hours": 7.4,
+    "calorie_intake": 1950
+  },
+  "predicted_risk": {
+    "baseline": {
+      "risk_score": 0.06,
+      "risk_level": "low"
+    },
+    "ml_prediction": {
+      "anomaly_flag": false,
+      "anomaly_score": -0.5,
+      "risk_predictions": {
+        "bmi": 24.0,
+        "heart_rate": 82,
+        "steps": 8400,
+        "diabetes_risk_score": 0.001,
+        "diabetes_risk_label": "low",
+        "cardiovascular_risk_score": 0.001,
+        "cardiovascular_risk_label": "low",
+        "obesity_risk_score": 0.001,
+        "obesity_risk_label": "low"
+      }
+    },
+    "predictive_summary": {
+      "baseline_risk_level": "low",
+      "baseline_risk_score": 0.06,
+      "anomaly_flag": false,
+      "anomaly_score": -0.5,
+      "projected_health_risks": {
+        "bmi": 24.0,
+        "heart_rate": 82,
+        "steps": 8400,
+        "diabetes_risk_score": 0.001,
+        "diabetes_risk_label": "low",
+        "cardiovascular_risk_score": 0.001,
+        "cardiovascular_risk_label": "low",
+        "obesity_risk_score": 0.001,
+        "obesity_risk_label": "low"
+      }
+    }
+  },
+  "recommendations": [
+    "Maintain regular monitoring and consult a clinician for persistent concerns."
+  ],
+  "goal_statuses": [
+    {
+      "goal_id": 1,
+      "patient_name": "Workflow User",
+      "goal_name": "daily_steps",
+      "current_value": 8000.0,
+      "target_value": 10000.0,
+      "unit": "steps",
+      "progress_percent": 80.0,
+      "recommendation": "You are close to your daily_steps goal. Stay consistent and keep building momentum."
+    },
+    {
+      "goal_id": 2,
+      "patient_name": "Workflow User",
+      "goal_name": "weight_loss_kg",
+      "current_value": 0.0,
+      "target_value": 5.0,
+      "unit": "kg",
+      "progress_percent": 0.0,
+      "recommendation": "Your weight_loss_kg goal needs more attention. Consider a simpler daily habit to get started."
+    },
+    {
+      "goal_id": 3,
+      "patient_name": "Workflow User",
+      "goal_name": "sleep_hours",
+      "current_value": 7.15,
+      "target_value": 8.0,
+      "unit": "hours",
+      "progress_percent": 89.38,
+      "recommendation": "You are close to your sleep_hours goal. Stay consistent and keep building momentum."
+    }
+  ],
+  "interactions": [],
+  "insights": [
+    "Current baseline risk is low.",
+    "Anomaly flag is off.",
+    "daily_steps progress is 80.00%.",
+    "weight_loss_kg progress is 0.00%.",
+    "sleep_hours progress is 89.38%.",
+    "Health journey trend is stable across 3 snapshot(s)."
+  ],
+  "journey_summary": {}
+}

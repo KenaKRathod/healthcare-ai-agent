@@ -9,6 +9,15 @@ client = TestClient(app)
 
 
 def test_health_goals_create_update_and_progress():
+    from backend.database import SessionLocal
+    from backend.models import HealthGoal
+    session = SessionLocal()
+    try:
+        session.query(HealthGoal).filter(HealthGoal.patient_name == "Alice").delete()
+        session.commit()
+    finally:
+        session.close()
+
     initial = client.get(
         "/health-goals",
         params={"patient_name": "Alice", "steps": 8500, "sleep_hours": 7.5},

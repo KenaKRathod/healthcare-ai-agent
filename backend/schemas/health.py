@@ -5,6 +5,13 @@ class HealthDataCreate(BaseModel):
     patient_name: str = Field(min_length=1, max_length=100)
     heart_rate: int
     blood_pressure: str = Field(max_length=15)
+    age: int | None = None
+    sex: str | None = Field(default=None, max_length=20)
+    waist_cm: float | None = None
+    activity: str | None = Field(default=None, max_length=50)
+    family_diabetic: str | None = Field(default=None, max_length=50)
+    fasting_blood_sugar: float | None = None
+    postprandial_blood_sugar: float | None = None
 
 
 class HealthRecordRead(BaseModel):
@@ -14,11 +21,21 @@ class HealthRecordRead(BaseModel):
     patient_name: str
     heart_rate: int
     blood_pressure: str
+    fasting_blood_sugar: float | None = None
+    postprandial_blood_sugar: float | None = None
+    age: int | None = None
+    sex: str | None = None
+    waist_cm: float | None = None
+    activity: str | None = None
+    family_diabetic: str | None = None
+    idrs_score: int | None = None
+    idrs_risk_level: str | None = None
 
 
 class AgentChatRequest(BaseModel):
     question: str = Field(min_length=3)
     patient_name: str | None = None
+    conversation_id: int | None = None
     latest_vitals: dict[str, str | int] | None = None
     bmi: float | None = None
     steps: int | None = None
@@ -37,6 +54,11 @@ class AgentChatResponse(BaseModel):
     selected_tool: str | None = None
     predictive_summary: dict = {}
     journey_summary: dict = {}
+    conversation_id: int | None = None
+    message_id: int | None = None
+    rag_sources: list[dict] = []
+    llm_used: bool = False
+    intent_router_used: str | None = None
 
 
 class WorkflowResponse(BaseModel):
@@ -67,8 +89,8 @@ class HealthReportResponse(BaseModel):
 
 
 class HealthAnalyticsResponse(BaseModel):
-    risk_summary: list[RiskSummary]
-    vitals_chart: VitalsChart
+    risk_summary: list["RiskSummary"]
+    vitals_chart: "VitalsChart"
 
 
 class GoalStatus(BaseModel):
@@ -121,3 +143,4 @@ class JourneySummaryResponse(BaseModel):
 
 WorkflowResponse.model_rebuild()
 HealthReportResponse.model_rebuild()
+HealthAnalyticsResponse.model_rebuild()

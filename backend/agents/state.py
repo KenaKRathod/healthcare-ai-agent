@@ -30,3 +30,8 @@ class HealthAgentState(TypedDict, total=False):
     report: dict
     report_path: str
     response: str
+    conversation_history: list[dict]
+    health_context: dict
+    rag_chunks: list[dict]
+    llm_used: bool
+    intent_router_used: str

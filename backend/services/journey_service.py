@@ -25,6 +25,10 @@ def record_journey_snapshot(
     risk_level: str,
     risk_score: float,
     anomaly_count: int,
+    idrs_score: int | None = None,
+    idrs_risk_level: str | None = None,
+    fasting_blood_sugar: float = 0.0,
+    postprandial_blood_sugar: float = 0.0,
 ) -> HealthJourneySnapshot:
     systolic_bp, diastolic_bp = _parse_blood_pressure(blood_pressure)
     snapshot = HealthJourneySnapshot(
@@ -39,6 +43,10 @@ def record_journey_snapshot(
         risk_level=risk_level,
         risk_score=float(risk_score),
         anomaly_count=int(anomaly_count),
+        idrs_score=idrs_score,
+        idrs_risk_level=idrs_risk_level,
+        fasting_blood_sugar=float(fasting_blood_sugar),
+        postprandial_blood_sugar=float(postprandial_blood_sugar),
     )
     db.add(snapshot)
     db.commit()

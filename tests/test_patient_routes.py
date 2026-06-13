@@ -19,6 +19,29 @@ def test_add_health_data_success():
     assert response.json() == {"message": "Health data stored"}
 
 
+def test_add_health_data_logs_idrs_when_inputs_are_present():
+    response = client.post(
+        "/health-data",
+        params={
+            "patient_name": "Idrs User",
+            "heart_rate": 72,
+            "blood_pressure": "120/80",
+            "age": 45,
+            "sex": "male",
+            "waist_cm": 92,
+            "activity": "sedentary",
+            "family_diabetic": "one",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "message": "Health data stored",
+        "idrs_score": 60,
+        "idrs_risk_level": "high",
+    }
+
+
 def test_add_health_data_rejects_invalid_heart_rate():
     response = client.post(
         "/health-data",

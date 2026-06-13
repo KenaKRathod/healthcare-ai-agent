@@ -1,0 +1,72 @@
+{
+  "patient_name": "Alice",
+  "bmi": null,
+  "trends": {
+    "vitals_summary": "Heart rate is 92 bpm and blood pressure is 135/88 (elevated blood pressure).",
+    "heart_rate": 92,
+    "blood_pressure": "135/88",
+    "steps": 9000,
+    "sleep_hours": 7.0,
+    "calorie_intake": 0
+  },
+  "predicted_risk": {},
+  "recommendations": [
+    "You are close to your daily_steps goal. Stay consistent and keep building momentum.",
+    "You are making progress on your weight_loss_kg goal. Small daily improvements will help.",
+    "You are close to your sleep_hours goal. Stay consistent and keep building momentum."
+  ],
+  "goal_statuses": [
+    {
+      "goal_id": 1,
+      "patient_name": "Alice",
+      "goal_name": "daily_steps",
+      "current_value": 9000.0,
+      "target_value": 10000.0,
+      "unit": "steps",
+      "progress_percent": 90.0,
+      "recommendation": "You are close to your daily_steps goal. Stay consistent and keep building momentum."
+    },
+    {
+      "goal_id": 2,
+      "patient_name": "Alice",
+      "goal_name": "weight_loss_kg",
+      "current_value": 2.0,
+      "target_value": 5.0,
+      "unit": "kg",
+      "progress_percent": 40.0,
+      "recommendation": "You are making progress on your weight_loss_kg goal. Small daily improvements will help."
+    },
+    {
+      "goal_id": 3,
+      "patient_name": "Alice",
+      "goal_name": "sleep_hours",
+      "current_value": 7.0,
+      "target_value": 8.0,
+      "unit": "hours",
+      "progress_percent": 87.5,
+      "recommendation": "You are close to your sleep_hours goal. Stay consistent and keep building momentum."
+    }
+  ],
+  "interactions": [
+    {
+      "medication_1": "ibuprofen",
+      "medication_2": "warfarin",
+      "warning": "Increased bleeding risk."
+    }
+  ],
+  "insights": [
+    "Daily steps progress is 90.00%.",
+    "Sleep goal progress is 40.00%.",
+    "Potential medication interactions were found."
+  ],
+  "journey_summary": {
+    "patient_name": "Alice",
+    "snapshot_count": 0,
+    "latest_risk_level": "unknown",
+    "average_heart_rate": 0.0,
+    "average_steps": 0.0,
+    "average_sleep_hours": 0.0,
+    "average_bmi": 0.0,
+    "risk_trend": "insufficient_data"
+  }
+}

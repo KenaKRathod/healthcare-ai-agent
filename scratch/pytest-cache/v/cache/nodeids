@@ -1,0 +1,15 @@
+[
+  "scratch/test_indian_tools.py::test_tools",
+  "tests/test_goals_and_reporting.py::test_health_goals_create_update_and_progress",
+  "tests/test_goals_and_reporting.py::test_health_report_contains_goal_statuses_interactions_and_insights",
+  "tests/test_patient_routes.py::test_add_health_data_logs_idrs_when_inputs_are_present",
+  "tests/test_patient_routes.py::test_add_health_data_rejects_invalid_heart_rate",
+  "tests/test_patient_routes.py::test_add_health_data_rejects_missing_blood_pressure",
+  "tests/test_patient_routes.py::test_add_health_data_success",
+  "tests/test_track_b_features.py::test_ai_health_chat_supports_research_tool_and_predictive_summary",
+  "tests/test_track_b_features.py::test_health_report_includes_journey_summary",
+  "tests/test_track_b_features.py::test_workflow_persists_health_journey_and_exposes_analytics",
+  "tests/test_workflow.py::test_workflow_calculates_idrs_for_uploaded_health_data",
+  "tests/test_workflow.py::test_workflow_endpoint_returns_enriched_monitoring_output",
+  "tests/test_workflow.py::test_workflow_supports_csv_json_and_xml"
+]

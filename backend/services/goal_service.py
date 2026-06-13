@@ -33,6 +33,21 @@ def ensure_patient_goals(db: Session, patient_name: str) -> list[HealthGoal]:
         .all()
     )
     if goals:
+        # Deduplicate any existing duplicate goals from previous bug
+        seen = set()
+        deduplicated = []
+        to_delete = []
+        for goal in goals:
+            if goal.goal_name in seen:
+                to_delete.append(goal)
+            else:
+                seen.add(goal.goal_name)
+                deduplicated.append(goal)
+        if to_delete:
+            for goal in to_delete:
+                db.delete(goal)
+            db.commit()
+            return deduplicated
         return goals
 
     goals = _default_goal_rows(patient_name)
@@ -54,6 +69,22 @@ def create_goal(
     target_value: float,
     unit: str,
 ) -> HealthGoal:
+    existing_goal = (
+        db.query(HealthGoal)
+        .filter(
+            HealthGoal.patient_name == patient_name,
+            HealthGoal.goal_name == goal_name,
+        )
+        .first()
+    )
+    if existing_goal:
+        existing_goal.target_value = float(target_value)
+        existing_goal.unit = unit
+        db.add(existing_goal)
+        db.commit()
+        db.refresh(existing_goal)
+        return existing_goal
+
     goal = HealthGoal(
         patient_name=patient_name,
         goal_name=goal_name,

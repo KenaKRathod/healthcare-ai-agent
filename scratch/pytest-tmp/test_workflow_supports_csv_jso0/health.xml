@@ -1,0 +1,18 @@
+<records>
+  <record>
+    <date>2026-03-01</date>
+    <heart_rate>75</heart_rate>
+    <blood_pressure>118/79</blood_pressure>
+    <steps>7600</steps>
+    <sleep_hours>6.9</sleep_hours>
+    <calorie_intake>1900</calorie_intake>
+  </record>
+  <record>
+    <date>2026-03-02</date>
+    <heart_rate>82</heart_rate>
+    <blood_pressure>124/80</blood_pressure>
+    <steps>8400</steps>
+    <sleep_hours>7.4</sleep_hours>
+    <calorie_intake>1950</calorie_intake>
+  </record>
+</records>

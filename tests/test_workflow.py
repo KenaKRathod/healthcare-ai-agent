@@ -23,6 +23,21 @@ def _write_csv(path: Path) -> None:
     )
 
 
+def _write_idrs_csv(path: Path) -> None:
+    path.write_text(
+        "\n".join(
+            [
+                (
+                    "date,heart_rate,blood_pressure,steps,sleep_hours,calorie_intake,weight_kg,height_m,"
+                    "age,sex,waist_cm,activity,family_diabetic"
+                ),
+                "2026-03-01,78,120/80,8200,7.0,2100,72,1.75,45,male,92,sedentary,one",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def _write_json(path: Path) -> None:
     path.write_text(
         json.dumps(
@@ -119,3 +134,18 @@ def test_workflow_endpoint_returns_enriched_monitoring_output(tmp_path: Path):
     assert payload["interactions"]
     assert payload["insights"]
     assert "Report generated at:" in payload["agent_response"]
+
+
+def test_workflow_calculates_idrs_for_uploaded_health_data(tmp_path: Path):
+    csv_path = tmp_path / "idrs_upload.csv"
+    _write_idrs_csv(csv_path)
+
+    result = run_health_monitoring_workflow(
+        file_path=csv_path,
+        patient_name="IDRS Workflow User",
+        output_dir=tmp_path / "idrs_workflow",
+    )
+
+    assert result["predictive_summary"]["idrs_score"] == 60
+    assert result["predictive_summary"]["idrs_risk_level"] == "high"
+    assert any("Indian Diabetes Risk Score is 60" in insight for insight in result["insights"])

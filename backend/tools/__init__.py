@@ -22,6 +22,12 @@ from backend.tools.symptom_checker import (
     possible_conditions,
     risk_level,
 )
+from backend.tools.indian_apis import (
+    lookup_indian_food,
+    lookup_ayurvedic_herb,
+    check_drug_herb_interaction,
+    lookup_pincode_doctor,
+)
 
 __all__ = [
     "analyze_symptoms",
@@ -41,4 +47,8 @@ __all__ = [
     "summarize_vitals",
     "track_steps",
     "treatment_options",
+    "lookup_indian_food",
+    "lookup_ayurvedic_herb",
+    "check_drug_herb_interaction",
+    "lookup_pincode_doctor",
 ]

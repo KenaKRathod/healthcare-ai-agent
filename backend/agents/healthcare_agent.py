@@ -6,6 +6,9 @@ from langgraph.graph import START, StateGraph
 from backend.agents.state import HealthAgentState
 from backend.ml import health_risk_predictor, pattern_detector, risk_model
 from backend.reports.health_report import generate_health_report
+from backend.services.intent_router import intent_to_tool, route_intent
+from backend.services.llm_service import generate_llm_response
+from backend.services.medical_rag_service import search_medical_context_vector
 from backend.tools import (
     analyze_symptoms,
     calorie_analysis,
@@ -16,38 +19,30 @@ from backend.tools import (
     search_medical_information,
     summarize_vitals,
     treatment_options,
+    lookup_indian_food,
+    lookup_ayurvedic_herb,
+    check_drug_herb_interaction,
+    lookup_pincode_doctor,
 )
 
 
 def detect_intent(state: HealthAgentState) -> HealthAgentState:
-    question = state.get("question", "").lower()
-
-    if any(keyword in question for keyword in ["symptom", "fever", "pain", "cough", "headache"]):
-        intent = "symptom"
-    elif any(keyword in question for keyword in ["medication", "drug", "tablet", "interaction"]):
-        intent = "medication"
-    elif any(keyword in question for keyword in ["diet", "nutrition", "calorie", "meal"]):
-        intent = "nutrition"
-    elif any(keyword in question for keyword in ["fitness", "bmi", "exercise", "steps", "workout"]):
-        intent = "fitness"
-    elif any(keyword in question for keyword in ["research", "guideline", "treatment", "condition"]):
-        intent = "research"
-    else:
-        intent = "general"
-
-    return {"intent": intent}
+    question = state.get("question", "")
+    intent, router_mode = route_intent(
+        question,
+        conversation_history=state.get("conversation_history", []),
+    )
+    return {"intent": intent, "intent_router_used": router_mode}
 
 
 def select_tool(state: HealthAgentState) -> HealthAgentState:
-    tool_map = {
-        "symptom": "symptom_checker",
-        "medication": "medication_tool",
-        "nutrition": "nutrition_tool",
-        "fitness": "fitness_tool",
-        "research": "research_tool",
-        "general": "health_summary",
-    }
-    return {"selected_tool": tool_map[state.get("intent", "general")]}
+    return {"selected_tool": intent_to_tool(state.get("intent", "general"))}
+
+
+def retrieve_rag_context(state: HealthAgentState) -> HealthAgentState:
+    question = state.get("question", "")
+    rag_chunks = state.get("rag_chunks") or search_medical_context_vector(question)
+    return {"rag_chunks": rag_chunks}
 
 
 def _extract_symptoms(question: str) -> list[str]:
@@ -71,8 +66,22 @@ def run_health_analysis(state: HealthAgentState) -> HealthAgentState:
     latest_vitals = state.get("latest_vitals")
     tool_result: dict | list | str
     recommendations: list[str] = []
+    medication_interactions = []
 
-    if selected_tool == "symptom_checker":
+    if selected_tool == "ayurvedic_tool":
+        topic = state.get("topic") or question
+        tool_result = lookup_ayurvedic_herb(topic)
+        recommendations = [
+            tool_result.get("diet_lifestyle_recommendations", "Follow standard Ayurvedic guidelines."),
+            tool_result.get("yoga_physical_therapy", "Practice pranayama and gentle stretching.")
+        ]
+    elif selected_tool == "doctor_pincode_tool":
+        import re
+        pincodes = re.findall(r"\b\d{6}\b", question)
+        pincode = pincodes[0] if pincodes else "560034"
+        tool_result = lookup_pincode_doctor(pincode)
+        recommendations = ["Consult a registered medical professional for symptoms and medical diagnoses."]
+    elif selected_tool == "symptom_checker":
         symptoms = state.get("symptoms") or _extract_symptoms(question)
         tool_result = analyze_symptoms(symptoms or ["fatigue"])
         recommendations = [
@@ -81,18 +90,51 @@ def run_health_analysis(state: HealthAgentState) -> HealthAgentState:
         ]
     elif selected_tool == "medication_tool":
         medications = state.get("medications") or ["warfarin", "ibuprofen"]
-        tool_result = check_interactions(medications)
+        
+        # Check standard allopathic interactions
+        allopathic_interactions = check_interactions(medications)
+        
+        # Check drug-herb interactions
+        herbs = [m for m in medications if m.lower() in ["ashwagandha", "arjuna", "tulsi", "gudmar", "jamun", "turmeric", "ginger"]]
+        drugs = [m for m in medications if m.lower() not in herbs]
+        herb_interactions = check_drug_herb_interaction(drugs, herbs)
+        
+        tool_result = {
+            "allopathic_interactions": allopathic_interactions,
+            "drug_herb_interactions": herb_interactions
+        }
+        medication_interactions = allopathic_interactions + herb_interactions
+        
         recommendations = [
             "Confirm interaction findings with a licensed clinician or pharmacist.",
             "Keep an up-to-date medication list.",
         ]
+        for item in herb_interactions:
+            recommendations.append(f"Warning: {item['warning']}")
     elif selected_tool == "nutrition_tool":
+        # Check if they asked about a specific food
+        food_lookup = None
+        for word in question.split():
+            clean_word = word.strip("?,.!")
+            if len(clean_word) > 3:
+                res = lookup_indian_food(clean_word)
+                if "error" not in res and "message" not in res:
+                    food_lookup = res
+                    break
+        
         calorie_intake = int(state.get("calorie_intake", 2000))
         tool_result = {
             "calorie_analysis": calorie_analysis(calorie_intake, 2000),
             "recommendations": nutrition_recommendation("maintenance"),
+            "indian_food_lookup": food_lookup
         }
         recommendations = nutrition_recommendation("maintenance")
+        if food_lookup:
+            recommendations.append(
+                f"Nutritional facts for {food_lookup['food_name']}: "
+                f"{food_lookup['calories_kcal']} kcal, P: {food_lookup['protein_g']}g, "
+                f"C: {food_lookup['carbohydrates_g']}g, F: {food_lookup['fats_g']}g."
+            )
     elif selected_tool == "fitness_tool":
         bmi_value = state.get("bmi")
         if bmi_value is None and state.get("weight_kg") and state.get("height_m"):
@@ -127,7 +169,7 @@ def run_health_analysis(state: HealthAgentState) -> HealthAgentState:
         "vital_summary": summarize_vitals(latest_vitals) if latest_vitals else "No recent vitals are on file.",
         "recommendations": recommendations,
         "research_summary": tool_result if selected_tool == "research_tool" else {},
-        "interactions": tool_result if selected_tool == "medication_tool" else state.get("interactions", []),
+        "interactions": medication_interactions if selected_tool == "medication_tool" else state.get("interactions", []),
     }
 
 
@@ -217,26 +259,103 @@ def generate_report_node(state: HealthAgentState) -> HealthAgentState:
     return update
 
 
-def compose_response(state: HealthAgentState) -> HealthAgentState:
+def _build_template_response(state: HealthAgentState) -> str:
     report_path = state.get("report_path")
+    selected_tool = state.get("selected_tool", "health_summary")
+    tool_result = state.get("tool_result")
+
     response_parts = [
         f"Intent detected: {state.get('intent', 'general')}.",
-        f"Tool used: {state.get('selected_tool', 'health_summary')}.",
+        f"Tool used: {selected_tool}.",
         f"Summary: {state.get('vital_summary', 'No vitals available.')}",
         f"Risk: {state.get('prediction', {}).get('risk_level', 'unknown')}.",
         f"Trend: {state.get('journey_summary', {}).get('risk_trend', 'unknown')}.",
         "This is supportive guidance and not a medical diagnosis.",
     ]
+    
+    # Append Ayurvedic details
+    if selected_tool == "ayurvedic_tool" and isinstance(tool_result, dict):
+        if "ayurvedic_herbs" in tool_result:
+            response_parts.append(
+                f"\n[Ayurvedic Recommendation for {tool_result.get('disease')}]:\n"
+                f"- Recommended Herbs: {tool_result.get('ayurvedic_herbs')}\n"
+                f"- Dosage/Formulation: {tool_result.get('formulation')}\n"
+                f"- Calibrated Doshas: {tool_result.get('doshas')}\n"
+                f"- Diet & Lifestyle Guidance: {tool_result.get('diet_lifestyle_recommendations')}\n"
+                f"- Suggested Yoga & Therapy: {tool_result.get('yoga_physical_therapy')}"
+            )
+            
+    # Append Doctor Pincode details
+    elif selected_tool == "doctor_pincode_tool" and isinstance(tool_result, dict):
+        doctors_list = tool_result.get("doctors", [])
+        if doctors_list:
+            doc_lines = [f"  * {d['name']} ({d['specialty']} at {d['clinic']}) - Tel: {d['phone']} Address: {d['address']}" for d in doctors_list]
+            doc_str = "\n".join(doc_lines)
+            response_parts.append(
+                f"\n[Doctor Locator in {tool_result.get('region_detected')} (Pincode {tool_result.get('pincode')}):\n"
+                f"{doc_str}"
+            )
+            
+    # Append Indian Food Lookup details
+    elif selected_tool == "nutrition_tool" and isinstance(tool_result, dict):
+        food_lookup = tool_result.get("indian_food_lookup")
+        if food_lookup:
+            response_parts.append(
+                f"\n[Indian Food Nutritional Details for {food_lookup['food_name']}]:\n"
+                f"- Calories: {food_lookup['calories_kcal']} kcal\n"
+                f"- Carbohydrates: {food_lookup['carbohydrates_g']}g\n"
+                f"- Protein: {food_lookup['protein_g']}g\n"
+                f"- Fats: {food_lookup['fats_g']}g\n"
+                f"- Fibre: {food_lookup['fibre_g']}g\n"
+                f"- Sodium: {food_lookup['sodium_mg']}mg"
+            )
+            
+    # Append Drug-Herb Interactions details
+    elif selected_tool == "medication_tool" and isinstance(tool_result, dict):
+        herb_interactions = tool_result.get("drug_herb_interactions", [])
+        if herb_interactions:
+            warnings = [f"  * Warning: {item['warning']}" for item in herb_interactions]
+            warnings_str = "\n".join(warnings)
+            response_parts.append(f"\n[Drug-Herb Interaction Alerts]:\n{warnings_str}")
+
     if state.get("research_summary"):
         response_parts.append("Research guidance was added to the response.")
     if report_path:
         response_parts.append(f"Report generated at: {Path(report_path).as_posix()}.")
-    return {"response": " ".join(response_parts)}
+    return " ".join(response_parts)
+
+
+def compose_response(state: HealthAgentState) -> HealthAgentState:
+    tool_context = {
+        "intent": state.get("intent"),
+        "selected_tool": state.get("selected_tool"),
+        "tool_result": state.get("tool_result"),
+        "vital_summary": state.get("vital_summary"),
+        "recommendations": state.get("recommendations", []),
+        "insights": state.get("insights", []),
+        "predictive_summary": state.get("predictive_summary", {}),
+        "journey_summary": state.get("journey_summary", {}),
+        "interactions": state.get("interactions", []),
+    }
+    rag_chunks = state.get("rag_chunks", [])
+    llm_response = generate_llm_response(
+        question=state.get("question", ""),
+        patient_name=state.get("patient_name", "Unknown"),
+        tool_context=tool_context,
+        rag_chunks=rag_chunks,
+        conversation_history=state.get("conversation_history", []),
+        latest_vitals=state.get("latest_vitals"),
+        health_context=state.get("health_context", {}),
+    )
+    if llm_response:
+        return {"response": llm_response, "llm_used": True}
+    return {"response": _build_template_response(state), "llm_used": False}
 
 
 graph = StateGraph(HealthAgentState)
 graph.add_node("detect_intent", detect_intent)
 graph.add_node("select_tool", select_tool)
+graph.add_node("retrieve_rag_context", retrieve_rag_context)
 graph.add_node("run_health_analysis", run_health_analysis)
 graph.add_node("run_ml_analysis", run_ml_analysis)
 graph.add_node("build_insights_node", build_insights_node)
@@ -244,7 +363,8 @@ graph.add_node("generate_report_node", generate_report_node)
 graph.add_node("compose_response", compose_response)
 graph.add_edge(START, "detect_intent")
 graph.add_edge("detect_intent", "select_tool")
-graph.add_edge("select_tool", "run_health_analysis")
+graph.add_edge("select_tool", "retrieve_rag_context")
+graph.add_edge("retrieve_rag_context", "run_health_analysis")
 graph.add_edge("run_health_analysis", "run_ml_analysis")
 graph.add_edge("run_ml_analysis", "build_insights_node")
 graph.add_edge("build_insights_node", "generate_report_node")

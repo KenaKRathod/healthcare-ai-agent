@@ -1,0 +1,122 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --aura-bg: #f4f7fb;
+  --aura-surface: #ffffff;
+  --aura-surface-muted: #eef2f8;
+  --aura-border: #d8e2ef;
+  --aura-text: #0f172a;
+  --aura-text-muted: #64748b;
+  --aura-accent: #0d9488;
+  --aura-accent-soft: rgba(13, 148, 136, 0.12);
+  --aura-glow: rgba(13, 148, 136, 0.18);
+}
+
+.dark {
+  --aura-bg: #060a12;
+  --aura-surface: #0f1624;
+  --aura-surface-muted: #151d2e;
+  --aura-border: #243044;
+  --aura-text: #e8edf5;
+  --aura-text-muted: #94a3b8;
+  --aura-accent: #2dd4bf;
+  --aura-accent-soft: rgba(45, 212, 191, 0.14);
+  --aura-glow: rgba(45, 212, 191, 0.22);
+}
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--aura-glow);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--aura-accent);
+}
+
+body {
+  background-color: var(--aura-bg);
+  color: var(--aura-text);
+  @apply antialiased selection:bg-teal-500 selection:text-white transition-colors duration-300;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Glassmorphism Panel styles */
+.glass-panel {
+  background: color-mix(in srgb, var(--aura-surface) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--aura-border) 70%, transparent);
+  @apply backdrop-blur-md shadow-sm rounded-2xl;
+}
+
+.dark .glass-panel {
+  @apply shadow-xl;
+  background: color-mix(in srgb, var(--aura-surface) 88%, transparent);
+}
+
+/* Glassmorphism Card styles with hover micro-animations */
+.glass-card {
+  background: color-mix(in srgb, var(--aura-surface) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--aura-border) 55%, transparent);
+  @apply backdrop-blur-sm shadow-sm rounded-xl transition-all duration-300;
+}
+
+.glass-card:hover {
+  background: color-mix(in srgb, var(--aura-surface) 95%, transparent);
+  border-color: color-mix(in srgb, var(--aura-accent) 35%, var(--aura-border));
+}
+
+/* Auth portal */
+.auth-shell {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, var(--aura-glow), transparent),
+    var(--aura-bg);
+}
+
+.auth-panel {
+  background: color-mix(in srgb, var(--aura-surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--aura-border) 80%, transparent);
+  @apply backdrop-blur-xl shadow-2xl rounded-2xl;
+}
+
+.auth-input {
+  background: var(--aura-surface-muted);
+  border: 1px solid var(--aura-border);
+  color: var(--aura-text);
+  @apply rounded-xl transition-colors duration-200;
+}
+
+.auth-input:focus {
+  border-color: var(--aura-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--aura-accent-soft);
+}
+
+.aura-gradient-text {
+  @apply bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 bg-clip-text text-transparent;
+}
+
+.dark .aura-gradient-text {
+  @apply from-teal-300 via-emerald-300 to-cyan-300;
+}
+
+/* Pulse animation for active alerts */
+@keyframes pulse-ring {
+  0% { transform: scale(0.98); opacity: 0.8; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(0.98); opacity: 0.8; }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2.5s infinite ease-in-out;
+}

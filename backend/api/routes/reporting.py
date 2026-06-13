@@ -1,9 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from backend.api.dependencies import get_db
+from backend.auth import get_current_user
+from backend.models import User
 from backend.reports.health_report import generate_health_report
 from backend.schemas.health import HealthReportResponse
 from backend.services.analytics_service import load_recent_patient_snapshot
@@ -11,6 +13,7 @@ from backend.services.goal_service import build_goal_statuses, list_patient_goal
 from backend.services.journey_service import build_journey_summary
 from backend.tools import check_interactions
 from backend.tools import summarize_vitals
+from backend.services.audit_service import log_audit_event
 
 router = APIRouter()
 
@@ -18,6 +21,7 @@ router = APIRouter()
 @router.get("/health-report", response_model=HealthReportResponse)
 def get_health_report(
     db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
     patient_name: str = "Unknown",
     bmi: float | None = None,
     steps: int = 0,
@@ -28,8 +32,22 @@ def get_health_report(
     output_format: str = "json",
     output_path: str | None = None,
 ):
-    latest_vitals = load_recent_patient_snapshot(db, patient_name=patient_name)
-    goals = list_patient_goals(db, patient_name)
+    # Enforce RBAC: Patients can only view/export their own reports
+    target_patient = patient_name
+    if current_user.role == "patient":
+        target_patient = current_user.username
+
+    log_audit_event(
+        db,
+        username=current_user.username,
+        role=current_user.role,
+        action="EXPORT",
+        resource=f"HealthReport:{target_patient}:{output_format}",
+        status="SUCCESS"
+    )
+
+    latest_vitals = load_recent_patient_snapshot(db, patient_name=target_patient)
+    goals = list_patient_goals(db, target_patient)
     goal_statuses = build_goal_statuses(
         goals,
         {
@@ -45,9 +63,9 @@ def get_health_report(
         f"Sleep goal progress is {goal_statuses[1]['progress_percent']:.2f}%." if len(goal_statuses) > 1 else "Sleep goal not configured.",
         "Potential medication interactions were found." if interactions else "No known medication interactions were found.",
     ]
-    journey_summary = build_journey_summary(db, patient_name)
+    journey_summary = build_journey_summary(db, target_patient)
     report = generate_health_report(
-        patient_name=patient_name,
+        patient_name=target_patient,
         bmi=bmi,
         trends={
             "vitals_summary": summarize_vitals(latest_vitals) if latest_vitals else "No recent vitals are on file.",
@@ -58,7 +76,7 @@ def get_health_report(
             "calorie_intake": calorie_intake,
         },
         predicted_risk={},
-        recommendations=[status["recommendation"] for status in goal_statuses] or [
+        recommendations=[status_data["recommendation"] for status_data in goal_statuses] or [
             "Continue monitoring your vitals regularly.",
             "Use the AI health chat for tool-guided recommendations.",
         ],

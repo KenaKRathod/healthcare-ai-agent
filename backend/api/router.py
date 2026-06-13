@@ -1,13 +1,16 @@
 from fastapi import APIRouter
 
-from backend.api.routes import agent, analytics, auth, doctor, goals, health, reporting
+from backend.api.routes import agent, analytics, auth, conversations, doctor, goals, health, reporting, audit, medications
 
 api_router = APIRouter()
 api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(doctor.router, tags=["doctor"])
 api_router.include_router(health.router, tags=["health"])
 api_router.include_router(agent.router, tags=["agent"])
+api_router.include_router(conversations.router, tags=["conversations"])
 api_router.include_router(analytics.router, tags=["analytics"])
 api_router.include_router(analytics.health_analytics_router, tags=["analytics"])
 api_router.include_router(reporting.router, tags=["reports"])
 api_router.include_router(goals.router, tags=["goals"])
+api_router.include_router(audit.router, tags=["audit"])
+api_router.include_router(medications.router, tags=["medications"])

@@ -42,10 +42,38 @@ def _ensure_numeric_columns(frame: pd.DataFrame, columns: list[str]) -> pd.DataF
     return normalized
 
 
+def _normalize_idrs_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy()
+    aliases = {
+        "waist_circumference_cm": "waist_cm",
+        "waist": "waist_cm",
+        "gender": "sex",
+        "physical_activity": "activity",
+        "activity_level": "activity",
+        "family_history": "family_diabetic",
+        "diabetic_family_history": "family_diabetic",
+    }
+    for source, target in aliases.items():
+        if source in normalized.columns and target not in normalized.columns:
+            normalized[target] = normalized[source]
+    return normalized
+
+
 def _enrich_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    frame = _normalize_idrs_columns(frame)
     enriched = _ensure_numeric_columns(
         frame,
-        ["heart_rate", "steps", "sleep_hours", "calorie_intake", "bmi", "weight_kg", "height_m"],
+        [
+            "heart_rate",
+            "steps",
+            "sleep_hours",
+            "calorie_intake",
+            "bmi",
+            "weight_kg",
+            "height_m",
+            "age",
+            "waist_cm",
+        ],
     )
     if "date" not in enriched.columns:
         enriched["date"] = pd.date_range("2026-01-01", periods=len(enriched), freq="D")
@@ -135,7 +163,33 @@ def run_health_monitoring_workflow(
 
     if "bmi" not in frame.columns:
         frame["bmi"] = 24.0
-    prediction_input = frame[[column for column in ["bmi", "heart_rate", "steps"] if column in frame.columns]]
+    
+    # Enrich frame with PatientProfile data if db is available
+    if db is not None:
+        from backend.models import PatientProfile
+        profile = db.query(PatientProfile).filter(PatientProfile.patient_name == patient_name).first()
+        if profile:
+            for col, val in [
+                ("age", profile.age),
+                ("waist_cm", profile.waist_cm),
+                ("sex", profile.gender),
+                ("activity", profile.physical_activity),
+                ("family_diabetic", profile.family_history)
+            ]:
+                if col not in frame.columns and val is not None:
+                    frame[col] = val
+
+    prediction_columns = [
+        "bmi",
+        "heart_rate",
+        "steps",
+        "age",
+        "waist_cm",
+        "sex",
+        "activity",
+        "family_diabetic",
+    ]
+    prediction_input = frame[[column for column in prediction_columns if column in frame.columns]]
     risk_results = health_risk_predictor.predict(prediction_input)
 
     charts = _generate_charts(frame, base_dir / "charts")
@@ -201,28 +255,88 @@ def run_health_monitoring_workflow(
         goal_statuses,
         interactions,
     )
+    latest_prediction = risk_results.iloc[-1].to_dict()
+    if pd.notna(latest_prediction.get("idrs_score")):
+        insights.append(
+            f"Indian Diabetes Risk Score is {int(latest_prediction['idrs_score'])} "
+            f"({latest_prediction.get('idrs_risk_level', 'unknown')} risk)."
+        )
 
     predicted_risk = {
         "anomaly_count": int(anomaly_results["anomaly_flag"].sum()),
-        "latest_prediction": risk_results.iloc[-1].to_dict(),
+        "latest_prediction": latest_prediction,
         "step_goal_progress": progress_percentage(avg_steps, DEFAULT_GOALS["daily_steps"]),
         "sleep_goal_progress": progress_percentage(avg_sleep, DEFAULT_GOALS["sleep_hours"]),
         "medication_interactions": interactions,
     }
     predictive_summary = {
-        "future_diabetes_risk": risk_results.iloc[-1].get("diabetes_risk_label", "unknown"),
-        "future_cardiovascular_risk": risk_results.iloc[-1].get("cardiovascular_risk_label", "unknown"),
-        "future_obesity_risk": risk_results.iloc[-1].get("obesity_risk_label", "unknown"),
+        "future_diabetes_risk": latest_prediction.get("diabetes_risk_label", "unknown"),
+        "future_cardiovascular_risk": latest_prediction.get("cardiovascular_risk_label", "unknown"),
+        "future_obesity_risk": latest_prediction.get("obesity_risk_label", "unknown"),
+        "idrs_score": latest_prediction.get("idrs_score"),
+        "idrs_risk_level": latest_prediction.get("idrs_risk_level"),
+        "idrs_details": latest_prediction.get("idrs_details"),
         "anomaly_count": int(anomaly_results["anomaly_flag"].sum()),
         "risk_scores": {
             key: value
-            for key, value in risk_results.iloc[-1].to_dict().items()
+            for key, value in latest_prediction.items()
             if key.endswith("_score")
         },
     }
 
     journey_summary = {}
     if db is not None:
+        from backend.models import HealthData
+        from backend.ml.health_prediction import calculate_idrs
+
+        # Bulk insert historical health records for complete tracking
+        health_data_mappings = []
+        for _, row in frame.iterrows():
+            idrs_score_val = None
+            idrs_risk_lbl = None
+            if (
+                pd.notna(row.get("age"))
+                and pd.notna(row.get("waist_cm"))
+                and pd.notna(row.get("activity"))
+                and pd.notna(row.get("family_diabetic"))
+            ):
+                try:
+                    idrs_res = calculate_idrs(
+                        age=row["age"],
+                        waist_cm=row["waist_cm"],
+                        activity=str(row["activity"]),
+                        family_diabetic=str(row["family_diabetic"]),
+                        sex=str(row.get("sex", "male")),
+                    )
+                    idrs_score_val = int(idrs_res["score"])
+                    idrs_risk_lbl = str(idrs_res["risk_level"])
+                except Exception:
+                    pass
+
+            health_data_mappings.append({
+                "patient_name": patient_name,
+                "heart_rate": int(row["heart_rate"]) if pd.notna(row.get("heart_rate")) else 72,
+                "blood_pressure": str(row.get("blood_pressure", "120/80")),
+                "fasting_blood_sugar": float(row["fasting_blood_sugar"]) if pd.notna(row.get("fasting_blood_sugar")) else None,
+                "postprandial_blood_sugar": float(row["postprandial_blood_sugar"]) if pd.notna(row.get("postprandial_blood_sugar")) else None,
+                "age": int(row["age"]) if pd.notna(row.get("age")) else None,
+                "sex": str(row.get("sex")) if pd.notna(row.get("sex")) else None,
+                "waist_cm": float(row["waist_cm"]) if pd.notna(row.get("waist_cm")) else None,
+                "activity": str(row.get("activity")) if pd.notna(row.get("activity")) else None,
+                "family_diabetic": str(row.get("family_diabetic")) if pd.notna(row.get("family_diabetic")) else None,
+                "idrs_score": idrs_score_val,
+                "idrs_risk_level": idrs_risk_lbl
+            })
+
+        if health_data_mappings:
+            db.bulk_insert_mappings(HealthData, health_data_mappings)
+            db.commit()
+
+        fasting_bs = float(latest.get("fasting_blood_sugar", 0.0)) if "fasting_blood_sugar" in latest else 0.0
+        postprandial_bs = float(latest.get("postprandial_blood_sugar", 0.0)) if "postprandial_blood_sugar" in latest else 0.0
+        idrs_val = latest_prediction.get("idrs_score")
+        idrs_lbl = latest_prediction.get("idrs_risk_level")
+
         record_journey_snapshot(
             db,
             patient_name=patient_name,
@@ -232,9 +346,13 @@ def run_health_monitoring_workflow(
             sleep_hours=float(latest.get("sleep_hours", 0.0)),
             calorie_intake=float(latest.get("calorie_intake", 0.0)),
             bmi=float(latest.get("bmi", 0.0)),
-            risk_level=str(predicted_risk["latest_prediction"].get("cardiovascular_risk_label", "unknown")),
-            risk_score=float(predicted_risk["latest_prediction"].get("cardiovascular_risk_score", 0.0)),
+            risk_level=str(latest_prediction.get("cardiovascular_risk_label", "unknown")),
+            risk_score=float(latest_prediction.get("cardiovascular_risk_score", 0.0)),
             anomaly_count=int(anomaly_results["anomaly_flag"].sum()),
+            idrs_score=int(idrs_val) if pd.notna(idrs_val) else None,
+            idrs_risk_level=str(idrs_lbl) if pd.notna(idrs_lbl) else None,
+            fasting_blood_sugar=fasting_bs,
+            postprandial_blood_sugar=postprandial_bs
         )
         journey_summary = build_journey_summary(db, patient_name)
 
