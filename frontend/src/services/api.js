@@ -62,8 +62,9 @@ async function request(endpoint, options = {}) {
   } catch (error) {
     console.error(`API request failed at ${endpoint}:`, error);
     if (error instanceof TypeError) {
+      const targetUrl = `${API_BASE_URL}${endpoint}`;
       throw new Error(
-        "Cannot reach the backend server. Start it with: python -m uvicorn backend.app:app --reload"
+        `Cannot reach backend at '${targetUrl}'. If this is a live deployment, ensure you have set the VITE_API_BASE_URL environment variable in your Vercel project settings (e.g., https://your-backend.onrender.com) and redeployed the frontend. For local development, make sure the backend server is running.`
       );
     }
     throw error;
