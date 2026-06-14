@@ -35,7 +35,7 @@ def _chroma_works() -> bool:
 
         store = get_chroma_store()
         _chroma_available = store._ensure_collection() is not None
-    except Exception:
+    except BaseException:
         logger.warning("ChromaDB unavailable; using FAISS vector store.")
         _chroma_available = False
     return _chroma_available

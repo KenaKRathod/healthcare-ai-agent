@@ -75,7 +75,7 @@ def seed_medical_rag_on_startup() -> None:
             sync_chroma_from_database(db)
         finally:
             db.close()
-    except Exception:
+    except BaseException:
         logger.exception("Medical RAG seed skipped due to startup error.")
 
 

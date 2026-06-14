@@ -34,7 +34,7 @@ class MedicalChromaStore:
                 metadata={"hnsw:space": "cosine"},
             )
             return self._collection
-        except Exception:
+        except BaseException:
             logger.exception("ChromaDB initialization failed.")
             return None
 

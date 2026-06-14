@@ -1,14 +1,14 @@
 # Healthcare AI Agent
 
-Healthcare-focused FastAPI backend with a modular LangGraph agent, rule-based ML risk scoring, and built-in vitals analytics endpoints.
+Healthcare-focused FastAPI backend featuring a modular LangGraph agent, rule-based ML risk scoring (IDRS), and built-in vitals analytics endpoints.
 
-## Stack
+## Technology Stack
 
-- FastAPI and Uvicorn for the API layer
-- LangGraph for agent orchestration
-- SQLAlchemy and SQLite for persistence
-- Pandas and Altair for health data analysis and visualization
-- Optional `scikit-learn` support for Python versions below 3.14
+- **FastAPI** & **Uvicorn** for the REST API layer
+- **LangGraph** & **OpenAI API** for the intelligent clinical agent orchestration
+- **SQLAlchemy** supporting local **SQLite** (`health_data.db`) and production **PostgreSQL** (e.g., Supabase with IPv4 poolers)
+- **Pandas** & **Altair** for analytics and vitals visualization
+- **Hybrid Vector Database (RAG)**: Uses **ChromaDB** by default, with a fallback to **FAISS**, and a secondary fallback to pure **NumPy / Scikit-Learn** (TF-IDF cosine similarity) to ensure 100% startup and search resilience on serverless/cloud platforms.
 
 ## Project Structure
 
@@ -16,54 +16,60 @@ Healthcare-focused FastAPI backend with a modular LangGraph agent, rule-based ML
 healthcare-ai-agent
 |
 +-- backend
-|   +-- agents
-|   +-- api
-|   +-- core
-|   +-- ml
-|   +-- schemas
-|   +-- services
-|   +-- tools
-|   +-- app.py
-|   +-- auth.py
-|   +-- database.py
-|   +-- models.py
-|   \-- requirements.txt
-\-- tests
+|   +-- agents          # LangGraph clinical decision trees
+|   +-- api             # FastAPI API endpoints (patient, auth, chatbot, etc.)
+|   +-- core            # Database models, configuration, and security settings
+|   +-- ml              # Indian Diabetes Risk Score (IDRS) and risk models
+|   +-- schemas         # Pydantic schemas for requests/responses
+|   +-- services        # Business logic (goal management, RAG seeders)
+|   +-- rag             # Vector stores (Chroma, FAISS, and NumPy fallbacks)
+|   +-- app.py          # FastAPI application initialization and startup scripts
+|   +-- requirements.txt# Pinned python package dependencies
+\-- tests               # Automated test suite (Pytest)
 ```
 
-## Setup
+## Setup & Run
 
-1. Install dependencies
+### 1. Install Dependencies
+Ensure you are using **Python 3.12** (pinned in `runtime.txt` to guarantee C extension compatibility for psycopg2 and numpy).
 
 ```bash
 venv\Scripts\python.exe -m pip install -r backend/requirements.txt
 ```
 
-2. Configure `.env`
+### 2. Environment Configuration (`.env`)
+Create a `.env` file in the root directory:
 
 ```env
+# Database Settings (use sqlite locally, postgresql:// in production)
 DATABASE_URL=sqlite:///backend/data/health_data.db
-SECRET_KEY=healthcaresecret
+SECRET_KEY=your_secret_jwt_key_here
 ALGORITHM=HS256
-APP_NAME=Healthcare AI Agent
-APP_VERSION=0.1.0
+APP_NAME="Healthcare AI Agent"
+APP_VERSION="0.1.0"
+
+# CORS Configuration
+CORS_ORIGINS="http://localhost:3000,http://localhost:5173"
+
+# Vector Store Preferences (auto | chromadb | faiss)
+VECTOR_BACKEND=auto
 ```
 
-3. Start the API
+### 3. Run the Backend API
+Start the local server:
 
 ```bash
 venv\Scripts\python.exe -m uvicorn backend.app:app --reload
 ```
 
-## Available Endpoints
+### 4. Running the Tests
+To verify all features work correctly:
 
-- `POST /health-data`
-- `GET /health-data`
-- `POST /ai-health-chat`
-- `GET /analytics/risk-summary`
-- `GET /analytics/vitals-chart`
+```bash
+venv\Scripts\python.exe -m pytest
+```
 
-## Notes
+## Database Migration & Deployment Notes
 
-- The current environment uses Python 3.14.3, so the included ML layer defaults to a lightweight built-in risk model instead of requiring `scikit-learn`.
-- Legacy imports such as `backend.routes.patient_routes` and `backend.health_agent` still work as compatibility shims.
+- **Supabase/PostgreSQL poolers**: If deploying to Render (which has outbound IPv6 routing limits), route database connections using Supabase's IPv4 connection poolers (port 5432). Configure the username format as `[username].[project_id]` in the `DATABASE_URL` connection string so the shared pooler resolves your tenant correctly.
+- **RAG Startup Resilience**: The startup script automatically builds the vector indices. If ChromaDB or FAISS encounters compiled binary loading issues on Render, the system will fall back to a NumPy/Scikit-Learn similarity matrix search, guaranteeing the server starts successfully without crashing.

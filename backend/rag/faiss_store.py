@@ -1,4 +1,4 @@
-"""FAISS vector store for medical RAG (Python 3.14 compatible fallback)."""
+"""FAISS vector store for medical RAG (with pure NumPy/Scikit-Learn fallback)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,15 @@ from backend.core.llm_config import llm_settings
 
 logger = logging.getLogger(__name__)
 
-_store: "MedicalFaissStore | None" = None
+# Detect if FAISS library is available
+_faiss_available = False
+try:
+    import faiss
+    _faiss_available = True
+except BaseException:
+    logger.warning("FAISS binary is not available. Falling back to NumPy/Scikit-Learn for vector search.")
+
+_store: MedicalFaissStore | None = None
 
 
 class MedicalFaissStore:
@@ -31,41 +39,61 @@ class MedicalFaissStore:
 
     def _load(self) -> None:
         if self.meta_file.exists():
-            self._metadata = json.loads(self.meta_file.read_text(encoding="utf-8"))
-        if self.index_file.exists():
+            try:
+                self._metadata = json.loads(self.meta_file.read_text(encoding="utf-8"))
+            except Exception:
+                logger.exception("Failed to load FAISS metadata.")
+                self._metadata = []
+        if _faiss_available and self.index_file.exists():
             try:
                 import faiss
-
                 self._index = faiss.read_index(str(self.index_file))
-            except Exception:
+            except BaseException:
                 logger.exception("Failed to load FAISS index.")
                 self._index = None
 
     def _save_metadata(self) -> None:
-        self.meta_file.write_text(json.dumps(self._metadata, ensure_ascii=True), encoding="utf-8")
+        try:
+            self.meta_file.write_text(json.dumps(self._metadata, ensure_ascii=True), encoding="utf-8")
+        except Exception:
+            logger.exception("Failed to save FAISS metadata.")
 
     def _save_index(self, matrix) -> None:
-        import faiss
-
-        dim = matrix.shape[1]
-        index = faiss.IndexFlatIP(dim)
-        index.add(matrix.astype(np.float32))
-        faiss.write_index(index, str(self.index_file))
-        self._index = index
+        if not _faiss_available:
+            return
+        try:
+            import faiss
+            dim = matrix.shape[1]
+            index = faiss.IndexFlatIP(dim)
+            index.add(matrix.astype(np.float32))
+            faiss.write_index(index, str(self.index_file))
+            self._index = index
+        except BaseException:
+            logger.exception("Failed to save FAISS index.")
+            self._index = None
 
     def _rebuild(self) -> None:
         if not self._metadata:
             self._index = None
             if self.index_file.exists():
-                self.index_file.unlink()
+                try:
+                    self.index_file.unlink()
+                except Exception:
+                    pass
             return
 
-        corpus = [item["content"] for item in self._metadata]
-        vectorizer = TfidfVectorizer(stop_words="english", max_features=8000)
-        matrix = vectorizer.fit_transform(corpus)
-        dense = normalize(matrix, norm="l2", axis=1).toarray()
-        self._vectorizer = vectorizer
-        self._save_index(dense)
+        try:
+            corpus = [item["content"] for item in self._metadata]
+            vectorizer = TfidfVectorizer(stop_words="english", max_features=8000)
+            matrix = vectorizer.fit_transform(corpus)
+            dense = normalize(matrix, norm="l2", axis=1).toarray()
+            self._vectorizer = vectorizer
+            if _faiss_available:
+                self._save_index(dense)
+            else:
+                self._index = None
+        except Exception:
+            logger.exception("Failed to rebuild FAISS/vectorizer index.")
 
     def upsert_document(
         self,
@@ -99,17 +127,29 @@ class MedicalFaissStore:
 
     def search(self, query: str, top_k: int | None = None) -> list[dict]:
         limit = top_k or llm_settings.rag_top_k
-        if not self._metadata or self._index is None:
+        if not self._metadata:
             return []
 
         try:
-            vectorizer = TfidfVectorizer(stop_words="english", max_features=8000)
+            # Fit/transform query
             corpus = [item["content"] for item in self._metadata]
+            vectorizer = TfidfVectorizer(stop_words="english", max_features=8000)
             matrix = vectorizer.fit_transform(corpus)
             query_vec = normalize(vectorizer.transform([query]), norm="l2", axis=1).toarray().astype(np.float32)
-            scores, indices = self._index.search(query_vec, min(limit, len(self._metadata)))
+
+            if _faiss_available and self._index is not None:
+                scores, indices = self._index.search(query_vec, min(limit, len(self._metadata)))
+                scores_list = scores[0]
+                indices_list = indices[0]
+            else:
+                # Cosine similarity using NumPy dot product
+                dense_matrix = normalize(matrix, norm="l2", axis=1).toarray().astype(np.float32)
+                similarities = (query_vec @ dense_matrix.T)[0]
+                indices_list = np.argsort(similarities)[::-1][:limit]
+                scores_list = similarities[indices_list]
+
             results = []
-            for score, idx in zip(scores[0], indices[0]):
+            for score, idx in zip(scores_list, indices_list):
                 if idx < 0 or idx >= len(self._metadata):
                     continue
                 meta = self._metadata[idx]
@@ -124,7 +164,7 @@ class MedicalFaissStore:
                 )
             return results
         except Exception:
-            logger.exception("FAISS search failed.")
+            logger.exception("FAISS/NumPy search failed.")
             return []
 
     def count(self) -> int:
